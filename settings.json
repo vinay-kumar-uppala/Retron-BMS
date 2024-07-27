@@ -1,0 +1,11 @@
+{
+    "num_cells": 8,
+    "num_temp_sensors": 4,
+    "bv_upper": 50.0,
+    "bv_lower": 10.0,
+    "bc_upper": 20.0,
+    "ts_upper": 40.0,
+    "ts_lower": 15.0,
+    "cv_upper": 4500.0,
+    "cv_lower": 2000.0
+}

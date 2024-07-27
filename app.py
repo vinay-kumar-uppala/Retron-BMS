@@ -12,10 +12,12 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import re,math,datetime
 import queue,os, sys
+import json
 
-# logo_path = os.path.join(sys._MEIPASS, 'logo.png')
-# cell_path = os.path.join(sys._MEIPASS, 'cell.png')
-# temp_path = os.path.join(sys._MEIPASS, 'temp.png')
+
+logo_path = os.path.join(sys._MEIPASS, 'logo.png')
+cell_path = os.path.join(sys._MEIPASS, 'cell.png')
+temp_path = os.path.join(sys._MEIPASS, 'temp.png')
 AH_meter = 0
 Battery_AH = 6   #setting input
 Percentage_SOC=0
@@ -25,9 +27,21 @@ ser=None
 buffer = b''
 start_reading = False
 null_sequence = b'\x00' * 128
+settings_file = 'settings.json'
 
+def load_settings():
+    if os.path.exists(settings_file):
+        with open(settings_file, 'r') as f:
+            return json.load(f)
+    return {}
+
+# Save settings to file
+def save_settings(settings):
+    with open(settings_file, 'w') as f:
+        json.dump(settings, f, indent=4)
 # Define regular expression patterns for each value
-num_v_values = 8  #setting input      # Set the number of 'V' values expected
+settings_data = load_settings()
+num_v_values = settings_data.get("num_cells",1) if settings_data!=None else 8 #setting input      # Set the number of 'V' values expected
 patterns = {
 'VBAT': re.compile(r'VBAT:(\d+\.\d+)V'),
 'IBAT': re.compile(r'IBAT:(\d+\.\d+)A'),
@@ -84,7 +98,7 @@ def create_nav_bar(root, frames):
     nav_bar = tk.Frame(root, bg="#333")
     nav_bar.pack(side="top", fill="x")
     
-    logo_image = Image.open('logo.png')  # Change to your logo file path
+    logo_image = Image.open(logo_path)  # Change to your logo file path
     logo_image = logo_image.resize((200, 60), Image.LANCZOS)  # Resize the image
     logo_img = ImageTk.PhotoImage(logo_image)
 
@@ -108,6 +122,7 @@ def create_nav_bar(root, frames):
     }
 
     buttons = [
+        ("Settings", "SettingsPage"),
         ("Graphs", "GraphsPage"),
         ("Data Log", "DataLoggingPage"),
         ("Dashboard", "DashboardPage"),
@@ -117,9 +132,6 @@ def create_nav_bar(root, frames):
     for (text, frame_name) in buttons:
         button = tk.Button(nav_bar, text=text, command=lambda f=frame_name: show_frame(frames, f), **button_style)
         button.pack(side="right", padx=5, pady=5)
-
-def random_values():
-    return [random.randint(0, 100) for _ in range(1)]
 
 def style_frame(frame, name, values):
     frame.config(bg='#2c3e50', bd=2, relief='ridge', padx=20, pady=20)
@@ -135,15 +147,15 @@ def create_frames(root):
     frames = {}
     names = ['VBAT', 'IBAT', 'STATUS', 'PACKAH', 'SOC', 'SSR']
 
-    cell_voltages = [3300, 3200, 3100, 3000, 2900, 2800, 2700, 2600]  # Example data
-    temp_readings = [15, 16, 17, 18]  # Example data for 5 sensors
+    cell_voltages = [0, 0, 0, 0, 0, 0, 0, 0]  # Example data
+    temp_readings = [0, 0, 0, 0]  # Example data for 5 sensors
 
     container = tk.Frame(root, bg='#ecf0f1')
     container.pack(fill='both', expand=True, padx=20, pady=20)
 
     # Load cell and temp logos
-    cell_logo = ImageTk.PhotoImage(Image.open('cell.png').resize((30, 30), Image.LANCZOS))
-    temp_logo = ImageTk.PhotoImage(Image.open('temp.png').resize((30, 30), Image.LANCZOS))
+    cell_logo = ImageTk.PhotoImage(Image.open(cell_path).resize((30, 30), Image.LANCZOS))
+    temp_logo = ImageTk.PhotoImage(Image.open(temp_path).resize((30, 30), Image.LANCZOS))
 
     for i, name in enumerate(names):
         frame = tk.Frame(container, width=500, height=500)
@@ -197,16 +209,8 @@ def create_frames(root):
 def create_dashboard_page(frame):
     global dashboardFrame
     frame.configure(bg="lightblue")
+    # Dashboard frames
     dashboardFrame = create_frames(frame)
-    # print(dashboardFrame)
-    # create_cell_temp_div(frame)
-    # Create frames for each parameter
-    # frameBox=ttk.Frame(frame, width=200, height=200, borderwidth=10, relief=tk.GROOVE)
-    # frameBox.pack_propagate(False)
-    # frameBox.pack()
-
-    # label=ttk.Label(frameBox,text="VBAT")
-    # label.pack()
     
 def connect():
         global ser,thread
@@ -280,8 +284,6 @@ def create_connection_page(frame):
     status_label = tk.Label(content, text="", bg="lightgreen", font=("Helvetica", 14))
     status_label.grid(row=3, column=0, columnspan=2, pady=10)
 
-def serialDataObjInit():
-  pass
 def read_serial_data(dashboardFrame,ser,data_queue):
     global buffer,start_reading,null_sequence,values,last_AH,AH_meter,Percentage_SOC,patterns
     while 1:
@@ -296,7 +298,11 @@ def read_serial_data(dashboardFrame,ser,data_queue):
                 while b'\n' in buffer:
                     line, buffer = buffer.split(b'\n', 1)
                     line = line.replace(b'\x00', b'')  # Remove null characters
-                    decoded_line = line.decode('utf-8')
+                    try:
+                        decoded_line = line.decode('utf-8')
+                    except UnicodeDecodeError:
+                        print("UnicodeDecodeError: Invalid UTF-8 bytes encountered, skipping line.")
+                        continue  # Skip processing this line and move to the next iteration
 
                     # Extract values using regex patterns
                     for key, pattern in patterns.items():
@@ -309,18 +315,19 @@ def read_serial_data(dashboardFrame,ser,data_queue):
                     
                     
                 #CONDITIONS   
-                    if values["STATUS_CODE"] == '106' or values["STATUS_CODE"] == '105':
+                    if values["STATUS_CODE"] in ['104','105','106']:
                         last_AH = AH_meter
                         AH_meter = 0                
                     elif values["STATUS"] == 'Charging':
-                        AH_meter=round((float(values["IBAT"])*0.00005555),6)+AH_meter
+                        AH_meter=round(((float(values["IBAT"])-0.1)*0.00005555),6)+AH_meter
                         Percentage_SOC = (AH_meter/Battery_AH)*100
                         # print("c")
                     elif values["STATUS"] == 'Discharging':
-                        AH_meter=round((float(values["IBAT"])*0.00005555),6)-AH_meter
+                        AH_meter=round(((float(values["IBAT"])+0.1)*-0.00005555),6)+AH_meter
                         Percentage_SOC = (last_AH/Battery_AH)*100
-                        # print("d")
-                    # elif values["STATUS"] == "Standby":
+                        print("d")
+                    elif values["STATUS"] == "Standby":
+                        pass
                     #     AH_meter=round((float(values["IBAT"])*0.005),6)+AH_meter
                     #     print("AH value:", AH_meter,"-",datetime.datetime.now())
                     #     Percentage_SOC = (AH_meter/Battery_AH)*100
@@ -332,10 +339,7 @@ def read_serial_data(dashboardFrame,ser,data_queue):
             print("serial error:")
         
 def update_gui_values(frames, data_values):
-    # print(data_values)
-    # Example: Update GUI components based on received data
-    # names = ['VBAT', 'IBAT', 'STATUS', 'PACKAH', 'SOC', 'SSR']
-    # print("updating",frames,sep='\n')
+   # Updating the frames
    # Update VBAT
     if 'VBAT' in frames:
         frame = frames['VBAT']
@@ -355,10 +359,11 @@ def update_gui_values(frames, data_values):
         frame = frames['STATUS']
         for child in frame.winfo_children():
             if isinstance(child, tk.Label) and child.cget('text').startswith('Value:'):
-                if values['STATUS'] == 'Discharging'
+                if values['STATUS'] == 'Discharging':
                     color = 'red'
-                if values['STATUS'] == ''
-                child.configure(text=f"Value: {values['STATUS']}")
+                if values['STATUS'] == 'Charging':
+                    color = 'green'
+                child.configure(text=f"Value: {values['STATUS']}",fg=color)
                 break
 
     if 'SSR' in frames:
@@ -410,20 +415,9 @@ def update_gui_values(frames, data_values):
                 cell_progressbar = frames[cell_key].children['!progressbar']
                 cell_value = int(values[cell_key])
                 cell_progressbar.configure(value=cell_value)
-    # for i, name in enumerate(names):
-    #     # Update cell voltage labels
-    #     cell_value_label = frames[name].winfo_children()[1]  # Assuming index is correct, adjust as per your layout
-    #     cell_value_label.config(text=f"{cell_voltages[i]} mV")
-
-    #     # Update temp readings (if applicable)
-    #     if i < len(temp_readings):
-    #         temp_value_label = frames[name].winfo_children()[7]  # Assuming index is correct, adjust as per your layout
-    #         temp_value_label.config(text=f"{temp_readings[i]} °C")
             
 def create_data_logging_page(frame):
     frame.configure(bg="lightyellow")
-
-    
     global logging_freq_entry, logging_freq_unit, log_file_entry, table_frame, table
 
     # Logging Frequency Section
@@ -488,16 +482,6 @@ def create_data_logging_page(frame):
     # Configure the scrollbar
     scrollbar_y.config(command=table.yview)
     scrollbar_x.config(command=table.xview)
-
-    # Sample data to initialize table
-    sample_data = {
-        # 'Time': ['2024-06-18 12:00:00', '2024-06-18 12:00:01', '2024-06-18 12:00:02', '2024-06-18 12:00:03', '2024-06-18 12:00:04'],
-        # 'VBAT': [25.3, 25.4, 25.2, 25.1, 25.3],
-        # 'IBAT': [2.8, 2.9, 2.7, 2.6, 2.8],
-        # 'SOC': [56, 57, 55, 54, 56]
-    }
-    # df = pd.DataFrame(sample_data)
-    # update_table(df)
 
 def start_logging():
     global logging_running, logged_data
@@ -565,17 +549,70 @@ def set_logging_interval():
 
 def update_table(df):
     global table
-    # for i in table.get_children():
-    #     table.delete(i)
-    
-    # for _, row in df.iterrows():
     table.insert("", "end", values=tuple(df.values()))
 
 def create_graphs_page(frame):
     frame.configure(bg="lightcoral")
-    # label = tk.Label(frame, text="Graphs Page", bg="lightcoral", font=("Helvetica", 16))
+    # Graph Page 
     GraphPage(frame, None).pack(fill="both", expand=True)
 
+
+def create_settings_page(frame):
+    settings = load_settings()
+
+    tk.Label(frame, text="Number of Cells:").grid(row=0, column=0, sticky=tk.W)
+    cells_var = tk.IntVar(value=settings.get('num_cells', 1))
+    tk.Spinbox(frame, from_=1, to=16, textvariable=cells_var).grid(row=0, column=1)
+
+    tk.Label(frame, text="Number of Temperature Sensors:").grid(row=1, column=0, sticky=tk.W)
+    temp_sensors_var = tk.IntVar(value=settings.get('num_temp_sensors', 1))
+    tk.Spinbox(frame, from_=1, to=10, textvariable=temp_sensors_var).grid(row=1, column=1)
+
+    tk.Label(frame, text="Battery Voltage Upper Limit:").grid(row=2, column=0, sticky=tk.W)
+    bv_upper_var = tk.DoubleVar(value=settings.get('bv_upper', 50.0))
+    tk.Entry(frame, textvariable=bv_upper_var).grid(row=2, column=1)
+
+    tk.Label(frame, text="Battery Voltage Lower Limit:").grid(row=3, column=0, sticky=tk.W)
+    bv_lower_var = tk.DoubleVar(value=settings.get('bv_lower', 10.0))
+    tk.Entry(frame, textvariable=bv_lower_var).grid(row=3, column=1)
+
+    tk.Label(frame, text="Battery Current Upper Limit:").grid(row=4, column=0, sticky=tk.W)
+    bc_upper_var = tk.DoubleVar(value=settings.get('bc_upper', 20.0))
+    tk.Entry(frame, textvariable=bc_upper_var).grid(row=4, column=1)
+
+    tk.Label(frame, text="Temperature Sensor Upper Limit:").grid(row=5, column=0, sticky=tk.W)
+    ts_upper_var = tk.DoubleVar(value=settings.get('ts_upper', 40.0))
+    tk.Entry(frame, textvariable=ts_upper_var).grid(row=5, column=1)
+
+    tk.Label(frame, text="Temperature Sensor Lower Limit:").grid(row=6, column=0, sticky=tk.W)
+    ts_lower_var = tk.DoubleVar(value=settings.get('ts_lower', 15.0))
+    tk.Entry(frame, textvariable=ts_lower_var).grid(row=6, column=1)
+
+    tk.Label(frame, text="Cell Voltage Upper Limit:").grid(row=7, column=0, sticky=tk.W)
+    cv_upper_var = tk.DoubleVar(value=settings.get('cv_upper', 4500.0))
+    tk.Entry(frame, textvariable=cv_upper_var).grid(row=7, column=1)
+
+    tk.Label(frame, text="Cell Voltage Lower Limit:").grid(row=8, column=0, sticky=tk.W)
+    cv_lower_var = tk.DoubleVar(value=settings.get('cv_lower', 2000.0))
+    tk.Entry(frame, textvariable=cv_lower_var).grid(row=8, column=1)
+
+    # Save button
+    def save():
+        new_settings = {
+            'num_cells': cells_var.get(),
+            'num_temp_sensors': temp_sensors_var.get(),
+            'bv_upper': bv_upper_var.get(),
+            'bv_lower': bv_lower_var.get(),
+            'bc_upper': bc_upper_var.get(),
+            'ts_upper': ts_upper_var.get(),
+            'ts_lower': ts_lower_var.get(),
+            'cv_upper': cv_upper_var.get(),
+            'cv_lower': cv_lower_var.get(),
+        }
+        save_settings(new_settings)
+        messagebox.showinfo("Settings", "Settings saved successfully!")
+
+    tk.Button(frame, text="Save", command=save).grid(row=9, column=0, columnspan=2)
 
 class GraphPage(tk.Frame):
     def __init__(self, parent, controller):
@@ -735,6 +772,7 @@ def main():
     frames["ConnectionPage"] = tk.Frame(container)
     frames["DataLoggingPage"] = tk.Frame(container)
     frames["GraphsPage"] = tk.Frame(container)
+    frames["SettingsPage"] = tk.Frame(container)
 
     for frame in frames.values():
         frame.grid(row=0, column=0, sticky="nsew")
@@ -743,8 +781,8 @@ def main():
     create_connection_page(frames["ConnectionPage"])
     create_data_logging_page(frames["DataLoggingPage"])
     create_graphs_page(frames["GraphsPage"])
-    
-    serialDataObjInit()
+    create_settings_page(frames["SettingsPage"])
+
     show_frame(frames, "DashboardPage")
     root.mainloop()
 
