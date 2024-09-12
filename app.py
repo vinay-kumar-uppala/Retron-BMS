@@ -76,7 +76,8 @@ temp_max = settings_data.get("ts_upper",1) if settings_data!=None else 100
 cell_max = settings_data.get("cv_upper",1) if settings_data!=None else 4500.00
 battery_volt_max = settings_data.get("bv_upper",1) if settings_data!=None else 4500.00 
 battery_current_max = settings_data.get("bc_upper",1) if settings_data!=None else 20
-
+IchOff = settings_data.get("IchOffset",1) if settings_data!=None else 0
+IdchOff = settings_data.get("IdchOffset",1) if settings_data!=None else 0
 # Define regular expression patterns for each value
 patterns = {
     'VBAT': re.compile(r'VBAT:(\d+\.\d+)V'),
@@ -530,11 +531,15 @@ def read_serial_data(dashboardFrame,ser,data_queue):
         while 1:
             if ser is not None and ser.isOpen():
                 buffer += ser.read(ser.in_waiting or 1)  # Read available data
-            # Check if the null sequence is in the buffer
+               # If the null sequence is found, start reading after it
                 if not start_reading and null_sequence in buffer:
                     start_reading = True
-                    # Truncate buffer to start after the null sequence
                     buffer = buffer.split(null_sequence, 1)[1]
+                
+                # If we haven't started reading and the buffer has data, start reading without waiting for nulls
+                if not start_reading and len(buffer) > 0:
+                    start_reading = True
+
                 if start_reading:
                     while b'\n' in buffer:
                         line, buffer = buffer.split(b'\n', 1)
@@ -550,40 +555,26 @@ def read_serial_data(dashboardFrame,ser,data_queue):
                             match = pattern.search(decoded_line)
                             if match:
                                 values[key] = match.group(1)
-                        
-                        # print("Current values:", values) # Print current values for debugging
-                        #print("check : ",values["STATUS"])
                             
                     #CONDITIONS   
-                        if values["STATUS_CODE"] in ['104','105','106']:
-                            last_AH = AH_meter
-                            AH_meter = 0
-                            if values["STATUS_CODE"] == '104':
-                                values["STATUS"] = "Cell Voltage Fault"
-                            if values["STATUS_CODE"] == '105':
-                                values["STATUS"] = "Over Charge"
-                            if values["STATUS_CODE"] == '106':
-                                values["STATUS"] = "Over Discharge"
-
-                        elif values["STATUS_CODE"] in ['100', '101', '102' ,'103', '107']:
+                        # Handle STATUS_CODE using the dictionary
+                        if "STATUS_CODE" in values:
                             status_info = status_code_map.get(values["STATUS_CODE"], ("Unknown Status", lambda: None))
                             BATT_Status, action = status_info
                             values["STATUS"] = BATT_Status
+                            action()  # Execute the associated action (if any)
 
                         elif values["STATUS"] == 'Charging':
-                            AH_meter=round(((float(values["IBAT"])-0.1)*0.00005555),6)+AH_meter
-                            Percentage_SOC = (AH_meter/Battery_AH)*100
+                            AH_meter = round(((float(values["IBAT"]+IchOff)) * 0.00028), 6) + AH_meter
+                            Percentage_SOC = (AH_meter / Battery_AH) * 100
                             
                         elif values["STATUS"] == 'Discharging':
-                            AH_meter=round(((float(values["IBAT"])+0.1)*-0.00005555),6)+AH_meter
-                            Percentage_SOC = (last_AH/Battery_AH)*100
+                            AH_meter = round(((float(values["IBAT"]+IdchOff)) * -0.00028), 6) + AH_meter
+                            Percentage_SOC = (last_AH / Battery_AH) * 100
                             
                         elif values["STATUS"] == "Standby":
                             pass
-                        #     AH_meter=round((float(values["IBAT"])*0.005),6)+AH_meter
-                        #     print("AH value:", AH_meter,"-",datetime.datetime.now())
-                        #     Percentage_SOC = (AH_meter/Battery_AH)*100
-                        # print("Percentage : ",Percentage_SOC)
+                       
                         values["SOC"]=round(Percentage_SOC,2)
                         values["PACKAH"]=round(AH_meter,2)
                         #update_gui_values(dashboardFrame,values)  
@@ -619,7 +610,7 @@ def update_dashboard(frames, values):
         frames["SSR"][1].config(text=values['SSR'])
 
     # Update cell voltage labels and progress bars
-    for i in range(1, 9):  # Assuming there are 8 cells
+    for i in range(1, num_v_values+1):  # Assuming there are 8 cells
         cell_key = f"V{i}"
         if cell_key in values:
             if values[cell_key]!=None:
@@ -858,6 +849,24 @@ def create_settings_page(frame):
     cv_lower_var = tk.DoubleVar(value=settings.get('cv_lower', 2000.0))
     ttk.Entry(cell_voltage_frame, textvariable=cv_lower_var).grid(row=1, column=1, pady=5)
 
+    # IchOffset Limits :
+    IchOffset_frame = ttk.LabelFrame(container, text="IchOffset Limits", padding=(10, 5))
+    IchOffset_frame.grid(row=5, column=0, pady=10, sticky=tk.W + tk.E)
+
+    ttk.Label(IchOffset_frame, text="IchOffset : ").grid(row=0, column=0, sticky=tk.W, pady=5)
+    IchOffset = tk.DoubleVar(value=settings.get('IchOffset', 0))
+    ttk.Entry(IchOffset_frame, textvariable=IchOffset).grid(row=0, column=1, pady=5)
+
+    # IdchOffset Limits :
+
+    IdchOffset_frame = ttk.LabelFrame(container, text="IdchOffset Limits", padding=(10, 5))
+    IdchOffset_frame.grid(row=6, column=0, pady=10, sticky=tk.W + tk.E)
+
+    ttk.Label(IdchOffset_frame, text="IdchOffset : ").grid(row=0, column=0, sticky=tk.W, pady=5)
+    IdchOffset = tk.DoubleVar(value=settings.get('IdchOffset', 0))
+    ttk.Entry(IdchOffset_frame, textvariable=IdchOffset).grid(row=0, column=1, pady=5)
+    
+
     # Save button at the bottom
     def save():
         new_settings = {
@@ -870,17 +879,19 @@ def create_settings_page(frame):
             'ts_lower': ts_lower_var.get(),
             'cv_upper': cv_upper_var.get(),
             'cv_lower': cv_lower_var.get(),
+            'IchOffset': IchOffset.get(),
+            'IdchOffset':IdchOffset.get()
         }
         save_settings(new_settings)
         messagebox.showinfo("Settings", "Settings saved successfully!")
 
-    ttk.Button(container, text="Save Settings", command=save).grid(row=5, column=0, padx=1, pady=1, sticky=tk.E)
+    ttk.Button(container, text="Save Settings", command=save).grid(row=7, column=0, padx=1, pady=1, sticky=tk.E)
 
 def main():
     root = tk.Tk()
     
-    root.title("Retron Battery Management System V1.0")
-    root.geometry("1200x800")
+    root.title("Retron Battery Management System V1.2")
+    root.geometry("1366x768")
     root.iconbitmap(company_icon)
     
     frames = {}
