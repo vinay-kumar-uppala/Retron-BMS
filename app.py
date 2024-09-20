@@ -732,29 +732,31 @@ def log_data():
     if logging_running:
         # Simulate logging data from serial
         current_time = time.strftime('%Y-%m-%d %H:%M:%S')
-        data = {
-            'Time': current_time,
-            'VBAT':values["VBAT"],
-            'IBAT':values["IBAT"],
-            'PACK_AH': values["PACKAH"],
-            'STATUS':values["STATUS"],
-            'SSR':values["SSR"],
-            'STATUS_CODE':values["STATUS_CODE"],
-            'SOC':values["SOC"],
-            'TBMS':values["TBMS"],
-            'T1':values["T1"],
-            'T2':values["T2"],
-            'T3':values["T3"],
-            'T4':values["T4"],
-            'V1':values["V1"],
-            'V2':values["V2"],
-            'V3':values["V3"],
-            'V4':values["V4"],
-            'V5':values["V5"],
-            'V6':values["V6"],
-            'V7':values["V7"],
-            'V8':values["V8"]
-        }
+        data = values
+        data['Time'] = current_time
+        # data = {
+        #     'Time': current_time,
+        #     'VBAT':values["VBAT"],
+        #     'IBAT':values["IBAT"],
+        #     'PACK_AH': values["PACKAH"],
+        #     'STATUS':values["STATUS"],
+        #     'SSR':values["SSR"],
+        #     'STATUS_CODE':values["STATUS_CODE"],
+        #     'SOC':values["SOC"],
+        #     'TBMS':values["TBMS"],
+        #     'T1':values["T1"],
+        #     'T2':values["T2"],
+        #     'T3':values["T3"],
+        #     'T4':values["T4"],
+        #     'V1':values["V1"],
+        #     'V2':values["V2"],
+        #     'V3':values["V3"],
+        #     'V4':values["V4"],
+        #     'V5':values["V5"],
+        #     'V6':values["V6"],
+        #     'V7':values["V7"],
+        #     'V8':values["V8"]
+        # }
         logged_data.append(data)
         
         # Write data to file
