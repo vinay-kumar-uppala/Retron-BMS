@@ -17,9 +17,14 @@ import math
 
 # Production File Configurations.
 company_logo_path = os.path.join(sys._MEIPASS, 'company_logo.png')
+# company_logo_path = 'company_logo.png'
 cell_path = os.path.join(sys._MEIPASS, 'cell.png')
+# cell_path = 'cell.png'
 temp_path = os.path.join(sys._MEIPASS, 'temp-logo.png')
+# temp_path = 'temp-logo.png'
 company_icon = os.path.join(sys._MEIPASS, 'icon.ico')
+# company_icon = 'icon.ico'
+
 
 # AH Current Calculation Constants.
 AH_meter = 0
@@ -27,7 +32,8 @@ Battery_AH = 6   #setting input
 Percentage_SOC=0
 stopFlag=False
 last_AH = 0 
-
+present_state = 0
+last_state = 0 
 # Define a dictionary to map STATUS_CODE to corresponding actions
 status_code_map = {
     "106": ("Over-Discharge", lambda: reset_AH_meter()),
@@ -231,11 +237,11 @@ def create_frames(root):
 
     # Container for the three columns
     columns_container = tk.Frame(root, bg='#ecf0f1')
-    columns_container.pack(fill='both', expand=True, padx=10, pady=10)
+    columns_container.pack(fill='both', expand=True, padx=5, pady=1)
     
     # Column 1: Cell voltages
     cell_voltage_container = tk.Frame(columns_container, bg='#ecf0f1')
-    cell_voltage_container.grid(row=0, column=0, sticky='nsew', padx=10)
+    cell_voltage_container.grid(row=0, column=0, sticky='nsew', padx=5)
 
     # Example data for cell voltages
     cell_voltages = [
@@ -296,50 +302,50 @@ def create_graph_generation_fields(parent, graph_container):
     fields_frame.pack(fill='both', expand=True)
 
     # File path
-    file_path_label = tk.Label(fields_frame, text="Choose File Path", font=("Helvetica", 12, 'bold'), bg='white')
+    file_path_label = tk.Label(fields_frame, text="Choose File Path", font=("Helvetica", 10, 'bold'), bg='white')
     file_path_label.pack(pady=5, anchor='w')
 
     file_path_entry = tk.Entry(fields_frame, font=("Helvetica", 12))
     file_path_entry.pack(pady=5, fill='x')
 
-    file_path_button = tk.Button(fields_frame, text="Browse", font=("Helvetica", 12, 'bold'),
+    file_path_button = tk.Button(fields_frame, text="Browse", font=("Helvetica", 10, 'bold'),
                                  command=lambda: browse_file_graph(file_path_entry, x_field_dropdown, y_field_dropdown))
     file_path_button.pack(pady=5)
 
     # X-axis field
-    x_field_label = tk.Label(fields_frame, text="X-Axis Field", font=("Helvetica", 12, 'bold'), bg='white')
+    x_field_label = tk.Label(fields_frame, text="X-Axis Field", font=("Helvetica", 10, 'bold'), bg='white')
     x_field_label.pack(pady=5, anchor='w')
 
     x_field_dropdown = ttk.Combobox(fields_frame, font=("Helvetica", 12))
     x_field_dropdown.pack(pady=5, fill='x')
 
     # Y-axis field
-    y_field_label = tk.Label(fields_frame, text="Y-Axis Field", font=("Helvetica", 12, 'bold'), bg='white')
+    y_field_label = tk.Label(fields_frame, text="Y-Axis Field", font=("Helvetica", 10, 'bold'), bg='white')
     y_field_label.pack(pady=5, anchor='w')
 
     y_field_dropdown = ttk.Combobox(fields_frame, font=("Helvetica", 12))
     y_field_dropdown.pack(pady=5, fill='x')
 
     # X-axis interval
-    interval_label = tk.Label(fields_frame, text="X-Axis Interval", font=("Helvetica", 12, 'bold'), bg='white')
+    interval_label = tk.Label(fields_frame, text="X-Axis Interval", font=("Helvetica", 10, 'bold'), bg='white')
     interval_label.pack(pady=5, anchor='w')
 
     interval_entry = tk.Entry(fields_frame, font=("Helvetica", 12))
     interval_entry.pack(pady=5, fill='x')
 
     # No of samples
-    samples_label = tk.Label(fields_frame, text="No of Samples", font=("Helvetica", 12, 'bold'), bg='white')
+    samples_label = tk.Label(fields_frame, text="No of Samples", font=("Helvetica", 10, 'bold'), bg='white')
     samples_label.pack(pady=5, anchor='w')
 
     samples_entry = tk.Entry(fields_frame, font=("Helvetica", 12))
     samples_entry.pack(pady=5, fill='x')
 
     # Plot and Save buttons
-    plot_button = tk.Button(fields_frame, text="Plot Graph", font=("Helvetica", 12, 'bold'),
+    plot_button = tk.Button(fields_frame, text="Plot Graph", font=("Helvetica", 10, 'bold'),
                             command=lambda: plot_graph(graph_container, file_path_entry.get(), x_field_dropdown.get(), y_field_dropdown.get(), interval_entry.get(), samples_entry.get()))
     plot_button.pack(pady=10)
 
-    save_button = tk.Button(fields_frame, text="Save Graph", font=("Helvetica", 12, 'bold'), command=save_graph)
+    save_button = tk.Button(fields_frame, text="Save Graph", font=("Helvetica", 10, 'bold'), command=save_graph)
     save_button.pack(pady=10)
 
 def plot_graph(graph_container, file_path, x_field, y_field, interval, samples):
@@ -390,20 +396,20 @@ def create_graph(parent):
     canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
 
 def create_cell_voltage_row(parent, cell_number, voltage, frames):
-    row_frame = tk.Frame(parent, bg='white', padx=5, pady=5)
-    row_frame.pack(fill='x', pady=5)
+    row_frame = tk.Frame(parent, bg='white', padx=5, pady=2)
+    row_frame.pack(fill='x', pady=3)
 
     # Cell number label
-    cell_number_label = tk.Label(row_frame, text=str(cell_number), font=("Helvetica", 12, 'bold'), bg='green', fg='white')
+    cell_number_label = tk.Label(row_frame, text=str(cell_number), font=("Helvetica", 10, 'bold'), bg='green', fg='white')
     cell_number_label.pack(side=tk.LEFT, padx=5)
 
     # Progress bar
-    progress_bar = ttk.Progressbar(row_frame, orient=tk.HORIZONTAL, length=200, mode='determinate', maximum=5000)
+    progress_bar = ttk.Progressbar(row_frame, orient=tk.HORIZONTAL, length=150, mode='determinate', maximum=5000)
     progress_bar.pack(side=tk.LEFT, padx=5)
     progress_bar['value'] = voltage
 
     # Voltage value
-    voltage_value_label = tk.Label(row_frame, text=f"{voltage} mV", font=("Helvetica", 12, 'bold'), bg='white')
+    voltage_value_label = tk.Label(row_frame, text=f"{voltage} mV", font=("Helvetica", 10, 'bold'), bg='white')
     voltage_value_label.pack(side=tk.LEFT, padx=5)
 
     frames[f"V{cell_number}"] = (row_frame, voltage_value_label, progress_bar)
@@ -411,21 +417,21 @@ def create_cell_voltage_row(parent, cell_number, voltage, frames):
 
 def create_temp_row(parent, temp_logo_path, temp_label, temp_value, column_index, frames):
     # Frame for each temperature entry
-    row_frame = tk.Frame(parent, bg='white', padx=10, pady=10)
+    row_frame = tk.Frame(parent, bg='white', padx=5, pady=5)
     row_frame.grid(row=1, column=column_index, padx=2, pady=2, sticky='nsew')
 
     # Load and display temperature logo
-    temp_logo = ImageTk.PhotoImage(Image.open(temp_logo_path).resize((30, 30), Image.LANCZOS))
+    temp_logo = ImageTk.PhotoImage(Image.open(temp_logo_path).resize((20, 20), Image.LANCZOS))
     temp_logo_label = tk.Label(row_frame, image=temp_logo, bg='white')
     temp_logo_label.image = temp_logo  # Keep a reference to avoid garbage collection
     temp_logo_label.grid(row=1, column=0, padx=2, pady=2)
 
     # Temperature label
-    label = tk.Label(row_frame, text=temp_label, font=("Helvetica", 12,'bold'), bg='white')
+    label = tk.Label(row_frame, text=temp_label, font=("Helvetica", 10,'bold'), bg='white')
     label.grid(row=1, column=1, padx=2, pady=2)
 
     # Progress bar
-    progress_bar = ttk.Progressbar(row_frame, orient=tk.HORIZONTAL, length=100, mode='determinate', maximum=100)
+    progress_bar = ttk.Progressbar(row_frame, orient=tk.HORIZONTAL, length=80, mode='determinate', maximum=100)
     progress_bar.grid(row=1, column=2, padx=2, pady=2)
     progress_bar['value'] = temp_value
 
@@ -543,7 +549,7 @@ def read_serial_data(dashboardFrame,ser,data_queue):
                 if start_reading:
                     while b'\n' in buffer:
                         line, buffer = buffer.split(b'\n', 1)
-                        line = line.replace(b'\x00', b'')  # Remove null characters
+                       # line = line.replace(b'\x00', b'')  # Remove null characters
                         try:
                             decoded_line = line.decode('utf-8')
                         except UnicodeDecodeError:
@@ -558,23 +564,28 @@ def read_serial_data(dashboardFrame,ser,data_queue):
                             
                     #CONDITIONS   
                         # Handle STATUS_CODE using the dictionary
-                        if "STATUS_CODE" in values:
-                            status_info = status_code_map.get(values["STATUS_CODE"], ("Unknown Status", lambda: None))
-                            BATT_Status, action = status_info
-                            values["STATUS"] = BATT_Status
-                            action()  # Execute the associated action (if any)
+                        #if "STATUS_CODE" in values:
+                         #   status_info = status_code_map.get(values["STATUS_CODE"], ("Unknown Status", lambda: None))
+                          #  BATT_Status, action = status_info
+                            #values["STATUS"] = BATT_Status
+                           # action()  # Execute the associated action (if any)
 
-                        elif values["STATUS"] == 'Charging':
-                            AH_meter = round(((float(values["IBAT"]+IchOff)) * 0.00028), 6) + AH_meter
+                        if values["STATUS"] == 'Charging':
+                            AH_meter = round(((float(values["IBAT"])+(IchOff)) * 0.00017), 6) + AH_meter
                             Percentage_SOC = (AH_meter / Battery_AH) * 100
-                            
+                            present_state = 'Charging'
+
                         elif values["STATUS"] == 'Discharging':
-                            AH_meter = round(((float(values["IBAT"]+IdchOff)) * -0.00028), 6) + AH_meter
+                            AH_meter = round(((float(values["IBAT"])+(IdchOff)) * -0.00017), 6) + AH_meter
                             Percentage_SOC = (last_AH / Battery_AH) * 100
-                            
+                            present_state = 'Discharging'
+
                         elif values["STATUS"] == "Standby":
                             pass
-                       
+                        
+                        if last_state != present_state:
+                            reset_AH_meter()
+                            
                         values["SOC"]=round(Percentage_SOC,2)
                         values["PACKAH"]=round(AH_meter,2)
                         #update_gui_values(dashboardFrame,values)  
@@ -734,6 +745,7 @@ def log_data():
         current_time = time.strftime('%Y-%m-%d %H:%M:%S')
         data = values
         data['Time'] = current_time
+
         # data = {
         #     'Time': current_time,
         #     'VBAT':values["VBAT"],
@@ -792,12 +804,12 @@ def create_settings_page(frame):
     settings = load_settings()
 
     # Add padding and create a frame for grouped settings
-    container = tk.Frame(frame, padx=10, pady=10)
+    container = tk.Frame(frame, padx=10, pady=5)
     container.grid(row=0, column=0, sticky=tk.NSEW)
 
     # Section: Cell and Temperature Sensor Configuration
     cell_temp_frame = ttk.LabelFrame(container, text="Cell and Temperature Sensor Configuration", padding=(10, 5))
-    cell_temp_frame.grid(row=0, column=0, pady=10, sticky=tk.W + tk.E)
+    cell_temp_frame.grid(row=0, column=0, pady=5, sticky=tk.W + tk.E)
 
     ttk.Label(cell_temp_frame, text="Number of Cells:").grid(row=0, column=0, sticky=tk.W, pady=5)
     cells_var = tk.IntVar(value=settings.get('num_cells', 1))
@@ -821,7 +833,7 @@ def create_settings_page(frame):
 
     # Section: Battery Current Limits
     current_frame = ttk.LabelFrame(container, text="Battery Current Limits", padding=(10, 5))
-    current_frame.grid(row=2, column=0, pady=10, sticky=tk.W + tk.E)
+    current_frame.grid(row=2, column=0, pady=5, sticky=tk.W + tk.E)
 
     ttk.Label(current_frame, text="Current Upper Limit:").grid(row=0, column=0, sticky=tk.W, pady=5)
     bc_upper_var = tk.DoubleVar(value=settings.get('bc_upper', 20.0))
@@ -829,7 +841,7 @@ def create_settings_page(frame):
 
     # Section: Temperature Sensor Limits
     temp_frame = ttk.LabelFrame(container, text="Temperature Sensor Limits", padding=(10, 5))
-    temp_frame.grid(row=3, column=0, pady=10, sticky=tk.W + tk.E)
+    temp_frame.grid(row=3, column=0, pady=5, sticky=tk.W + tk.E)
 
     ttk.Label(temp_frame, text="Temperature Upper Limit:").grid(row=0, column=0, sticky=tk.W, pady=5)
     ts_upper_var = tk.DoubleVar(value=settings.get('ts_upper', 40.0))
@@ -853,7 +865,7 @@ def create_settings_page(frame):
 
     # IchOffset Limits :
     IchOffset_frame = ttk.LabelFrame(container, text="IchOffset Limits", padding=(10, 5))
-    IchOffset_frame.grid(row=5, column=0, pady=10, sticky=tk.W + tk.E)
+    IchOffset_frame.grid(row=5, column=0, pady=5, sticky=tk.W + tk.E)
 
     ttk.Label(IchOffset_frame, text="IchOffset : ").grid(row=0, column=0, sticky=tk.W, pady=5)
     IchOffset = tk.DoubleVar(value=settings.get('IchOffset', 0))
@@ -862,7 +874,7 @@ def create_settings_page(frame):
     # IdchOffset Limits :
 
     IdchOffset_frame = ttk.LabelFrame(container, text="IdchOffset Limits", padding=(10, 5))
-    IdchOffset_frame.grid(row=6, column=0, pady=10, sticky=tk.W + tk.E)
+    IdchOffset_frame.grid(row=6, column=0, pady=5, sticky=tk.W + tk.E)
 
     ttk.Label(IdchOffset_frame, text="IdchOffset : ").grid(row=0, column=0, sticky=tk.W, pady=5)
     IdchOffset = tk.DoubleVar(value=settings.get('IdchOffset', 0))
@@ -892,8 +904,8 @@ def create_settings_page(frame):
 def main():
     root = tk.Tk()
     
-    root.title("Retron Battery Management System V1.2")
-    root.geometry("1366x768")
+    root.title("Retron Battery Management System V1.3")
+    root.geometry("1280x720")
     root.iconbitmap(company_icon)
     
     frames = {}
