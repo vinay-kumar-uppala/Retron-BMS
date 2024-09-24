@@ -102,7 +102,7 @@ patterns = {
 serial_data = {
     'VBAT': '0',
     'IBAT': '0',
-    'PACK_AH':'0',
+    'PACKAH':'0',
     'STATUS': 'NA',
     'SSR': '0',
     'STATUS_CODE': '0',
